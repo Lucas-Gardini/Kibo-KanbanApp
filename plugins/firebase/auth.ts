@@ -1,9 +1,7 @@
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
-import app from "./index";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { auth } from "./";
 
 type LoginTypes = "email" | "google";
-
-const auth = getAuth(app);
 
 onAuthStateChanged(auth, (user) => {
 	if (user) {
@@ -47,4 +45,12 @@ async function login(type: LoginTypes, email?: string, password?: string) {
 	}
 }
 
-export { register, login };
+async function logout() {
+	return await auth.signOut();
+}
+
+function getUser() {
+	return auth.currentUser;
+}
+
+export { register, login, logout, getUser };
