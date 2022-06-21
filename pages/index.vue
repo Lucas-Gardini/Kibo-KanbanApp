@@ -1,7 +1,7 @@
 <script setup></script>
 
 <template>
-	<div>ass</div>
+	<div><NuxtLink to="dashboard">Acessar Aplicação</NuxtLink></div>
 </template>
 
 <style></style>

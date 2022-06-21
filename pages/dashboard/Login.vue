@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { login, LoginTypes } from "../plugins/firebase/auth";
+import { login, LoginTypes } from "../../plugins/firebase/auth";
 import Splitter from "primevue/splitter";
 import SplitterPanel from "primevue/splitterpanel";
 import Card from "primevue/card";
@@ -55,7 +55,7 @@ const authenticate = async (type: LoginTypes) => {
 	}
 
 	if (!loginValue.value.includes("Error")) {
-		return navigateTo("/");
+		return navigateTo("/dashboard");
 	}
 };
 </script>
@@ -77,7 +77,7 @@ const authenticate = async (type: LoginTypes) => {
 					<SplitterPanel :size="50">
 						<Card class="auth-card">
 							<template #header>
-								<Image src="logo/png/black_nobackground.png" alt="Image Text" imageStyle="height: 50px; width: 50px" />
+								<img src="/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px; width: 50px" />
 							</template>
 							<template #content>
 								<ProgressSpinner v-if="loading" />

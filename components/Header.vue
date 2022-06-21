@@ -3,12 +3,20 @@ import { getUser, logout } from "../plugins/firebase/auth";
 import Menubar from "primevue/menubar";
 import Avatar from "primevue/avatar";
 import Image from "primevue/image";
-import itemsjson from "../assets/menubar.json";
 import Menu from "primevue/menu";
 
 const emit = defineEmits(["logout"]);
 
-const items = ref(itemsjson as any);
+const items = ref([
+	{
+		label: "Projetos",
+		icon: "pi pi-fw pi-book",
+		command: () => {
+			navigateTo("/dashboard");
+		},
+		class: "",
+	},
+] as any);
 const user = ref(null as unknown as ReturnType<typeof getUser>);
 const pfpUrl = ref(null);
 const menu = ref(null);
@@ -39,7 +47,7 @@ const userMenu = [
 <template>
 	<Menubar :model="items">
 		<template #start>
-			<Image src="logo/png/black_nobackground.png" alt="Image Text" imageStyle="height: 50px" />
+			<img src="/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px" />
 		</template>
 
 		<template #end>

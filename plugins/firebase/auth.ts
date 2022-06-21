@@ -54,7 +54,7 @@ async function login(type: LoginTypes, email?: string, password?: string) {
 
 async function logout() {
 	await auth.signOut();
-	return navigateTo("/login");
+	return navigateTo("/dashboard/login");
 }
 
 function getUser() {

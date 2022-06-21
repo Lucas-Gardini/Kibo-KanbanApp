@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getUser } from "./plugins/firebase/auth";
+
 const user = ref(null);
 
 const route = useRoute();
@@ -9,8 +10,8 @@ const verifyUser = ref(null);
 const startVerify = () => {
 	verifyUser.value = setInterval(() => {
 		if (getUser()) {
-			if (route.path === "/login") {
-				navigateTo("/");
+			if (route.path === "/dashboard/login") {
+				navigateTo("/dashboard");
 			}
 			user.value = getUser();
 			clearInterval(verifyUser);
@@ -31,17 +32,18 @@ onMounted(() => {
 			<Title>Kibo - Kanban</Title>
 			<Meta name="description" content="Kibo - Kanban" />
 		</Head>
-		<Header
-			v-if="user"
-			@logout="
-				() => {
-					startVerify();
-				}
-			"
-		/>
-		<Transition>
+		<div>
+			<Header
+				v-if="user && route.path !== '/'"
+				@logout="
+					() => {
+						startVerify();
+					}
+				"
+			/>
+
 			<NuxtPage />
-		</Transition>
+		</div>
 	</div>
 </template>
 
