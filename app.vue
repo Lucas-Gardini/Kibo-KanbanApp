@@ -1,13 +1,28 @@
-<script setup>
+<script setup lang="ts">
 import { getUser } from "./plugins/firebase/auth";
 const user = ref(null);
 
-const verifyUser = setInterval(() => {
-	if (getUser()) {
-		user.value = getUser();
-		clearInterval(verifyUser);
-	}
-}, 100);
+const route = useRoute();
+
+const verifyUser = ref(null);
+
+const startVerify = () => {
+	verifyUser.value = setInterval(() => {
+		if (getUser()) {
+			if (route.path === "/login") {
+				navigateTo("/");
+			}
+			user.value = getUser();
+			clearInterval(verifyUser);
+		} else {
+			user.value = null;
+		}
+	}, 100);
+};
+
+onMounted(() => {
+	startVerify();
+});
 </script>
 
 <template>
@@ -16,9 +31,17 @@ const verifyUser = setInterval(() => {
 			<Title>Kibo - Kanban</Title>
 			<Meta name="description" content="Kibo - Kanban" />
 		</Head>
-		<Header v-if="user" />
-
-		<NuxtPage />
+		<Header
+			v-if="user"
+			@logout="
+				() => {
+					startVerify();
+				}
+			"
+		/>
+		<Transition>
+			<NuxtPage />
+		</Transition>
 	</div>
 </template>
 
@@ -32,9 +55,41 @@ body {
 	font-family: "Nunito", sans-serif;
 }
 
+.v-enter-active,
+.v-leave-active {
+	transition: opacity 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+	opacity: 0;
+}
+
 .p-card .p-card-content {
 	padding: 1.25rem 0 !important;
 	display: flex !important;
 	flex-direction: column !important;
+}
+
+/* .p-progress-spinner-circle {
+	animation: p-progress-spinner-dash 1.5s ease-in-out infinite, p-progress-spinner-color 6s ease-in-out infinite;
+	-webkit-animation: p-progress-spinner-dash 1.5s ease-in-out infinite, p-progress-spinner-color 6s ease-in-out infinite;
+} */
+
+@keyframes p-progress-spinner-color {
+	100%,
+	0% {
+		stroke: #14b8a6;
+	}
+	40% {
+		stroke: #14b8a6;
+	}
+	66% {
+		stroke: white;
+	}
+	80%,
+	90% {
+		stroke: #14b8a6;
+	}
 }
 </style>

@@ -1,4 +1,5 @@
-<script setup>
+<script setup lang="ts">
+import { login, LoginTypes } from "../plugins/firebase/auth";
 import Splitter from "primevue/splitter";
 import SplitterPanel from "primevue/splitterpanel";
 import Card from "primevue/card";
@@ -7,17 +8,13 @@ import Image from "primevue/image";
 import InputText from "primevue/inputtext";
 import Password from "primevue/password";
 import Divider from "primevue/divider";
-
-/* 
-Copyright (c) 2022 by Goodkatz (https://codepen.io/goodkatz/pen/LYPGxQz)
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+import ProgressSpinner from "primevue/progressspinner";
 
 const responsive = ref(false);
 const user = ref(null);
 const password = ref(null);
+const loading = ref(false);
+const loginValue = ref("");
 
 onMounted(() => {
 	checkResponsivity();
@@ -31,14 +28,44 @@ const checkResponsivity = () => {
 		responsive.value = false;
 	}
 };
+
+watch(user, () => {
+	loginValue.value = "";
+});
+
+watch(password, () => {
+	loginValue.value = "";
+});
+
+const authenticate = async (type: LoginTypes) => {
+	switch (type) {
+		case "email":
+			loading.value = true;
+			loginValue.value = await login("email", user.value, password.value);
+			console.log(loginValue.value);
+			loading.value = false;
+			break;
+
+		case "google":
+			loading.value = true;
+			loginValue.value = await login("google");
+			console.log(loginValue.value);
+			loading.value = false;
+			break;
+	}
+
+	if (!loginValue.value.includes("Error")) {
+		return navigateTo("/");
+	}
+};
 </script>
 
 <template>
-	<div style="overflow: hidden; max-height: 100vh">
-		<div class="header">
+	<div>
+		<div class="waves-container">
 			<div class="inner-header flex">
 				<Splitter :gutter-size="0" style="height: auto; margin: 25px" :layout="responsive ? 'vertical' : 'horizontal'">
-					<SplitterPanel :size="65" v-if="!responsive">
+					<!-- <SplitterPanel :size="65" v-if="!responsive">
 						<Card class="auth-card">
 							<template #content>
 								Lorem ipsum dolor sit amet, consectetur adipisicing elit. Inventore sed consequuntur error repudiandae numquam
@@ -46,46 +73,53 @@ const checkResponsivity = () => {
 								quas!
 							</template>
 						</Card>
-					</SplitterPanel>
-					<SplitterPanel :size="35">
+					</SplitterPanel> -->
+					<SplitterPanel :size="50">
 						<Card class="auth-card">
 							<template #header>
 								<Image src="logo/png/black_nobackground.png" alt="Image Text" imageStyle="height: 50px; width: 50px" />
 							</template>
 							<template #content>
-								<span class="p-input-icon-left" style="margin-bottom: 20px">
-									<i class="pi pi-envelope" />
-									<InputText style="width: 100%" type="text" v-model="user" placeholder="Email" />
-								</span>
+								<ProgressSpinner v-if="loading" />
 
-								<Password
-									v-model="password"
-									promptLabel="Digite sua senha"
-									weakLabel="Fraca"
-									mediumLabel="Mediana"
-									strongLabel="Forte"
-									toggleMask
-									placeholder="Senha"
-									input-style="width: 100%"
-								>
-									<template #footer>
-										<Divider />
-										<p class="mt-2">Para uma senha mais segura:</p>
-										<ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-											<li>Um caractere minúsculo</li>
-											<li>Um caractere maiúsculo</li>
-											<li>Um número</li>
-											<li>Pelo menos 8 caracteres</li>
-										</ul>
-									</template>
-								</Password>
-								<Button
-									class="p-button-raised"
-									style="margin-top: 25px; background-color: #14b8a6; border: 1px solid #14b8a6"
-									label="Entrar ou Cadastrar"
-									icon="pi pi-check"
-									iconPos="right"
-								/>
+								<div v-else style="display: flex; flex-direction: column">
+									<span class="p-input-icon-left" style="margin-bottom: 20px">
+										<i class="pi pi-envelope" />
+										<InputText
+											style="width: 100%"
+											type="text"
+											v-model="user"
+											placeholder="Email"
+											:class="loginValue.includes('invalid-email') || (loginValue.includes('missing-email') && 'p-invalid')"
+										/>
+									</span>
+
+									<Password
+										v-model="password"
+										toggleMask
+										placeholder="Senha"
+										input-style="width: 100%"
+										:feedback="false"
+										:class="loginValue.includes('wrong-password') && 'p-invalid'"
+									/>
+									<Button
+										class="p-button-raised"
+										style="margin-top: 25px; background-color: #14b8a6; border: 1px solid #14b8a6"
+										label="Entrar ou Cadastrar"
+										icon="pi pi-check"
+										iconPos="right"
+										@click="authenticate('email')"
+									/>
+									<Divider align="center"> ou </Divider>
+									<Button
+										class="p-button-raised"
+										style="background-color: #14b8a6; border: 1px solid #14b8a6"
+										label="Entrar com google"
+										icon="pi pi-google"
+										iconPos="right"
+										@click="authenticate('google')"
+									/>
+								</div>
 							</template>
 						</Card>
 					</SplitterPanel>
@@ -115,23 +149,33 @@ const checkResponsivity = () => {
 			</div>
 		</div>
 
-		<div class="content flex">
+		<!-- <div v-if="!responsive" class="content flex">
 			<p>
 				Fundo: Goodkatz | Aplicação:
 				<a style="color: #333333 !important" href="https://www.linkedin.com/in/lucasgardini/" target="_blank">Lucas Gardini Dias</a>
 			</p>
-		</div>
+		</div> -->
 	</div>
 </template>
 
 <style scoped>
 @import url(//fonts.googleapis.com/css?family=Lato:300:400);
 
+body {
+	overflow: hidden;
+	background-color: #14b8a6;
+}
+
 p {
 	font-family: "Lato", sans-serif;
 	letter-spacing: 1px;
 	font-size: 14px;
 	color: #333333;
+}
+
+.p-splitter,
+.p-card {
+	border-radius: 0px;
 }
 
 .p-splitter-gutter {
@@ -153,12 +197,27 @@ p {
 	display: flex !important;
 	flex-direction: row !important;
 }
-.header {
+.waves-container {
 	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	top: 0;
+	left: 0;
+	/* width: 100vh; */
+	height: 100vh;
 	text-align: center;
 	background: linear-gradient(60deg, #14b8a6 0%, #14b8a6 100%);
 	color: white;
 }
+
+@media (max-width: 768px) {
+	.waves-container {
+		height: 95vh;
+	}
+}
+
 .logo {
 	width: 50px;
 	fill: white;
@@ -168,10 +227,13 @@ p {
 }
 
 .inner-header {
+	position: absolute;
 	height: 65vh;
 	width: 100%;
 	margin: 0;
+	margin-bottom: 25px;
 	padding: 0;
+	z-index: 2;
 }
 
 .flex {
@@ -183,12 +245,12 @@ p {
 }
 
 .waves {
-	position: relative;
+	position: absolute;
+	bottom: 0;
+	left: 0;
 	width: 100%;
-	height: 15vh;
-	margin-bottom: -7px; /*Fix for safari gap*/
-	min-height: 100px;
-	max-height: 150px;
+	height: 25vh;
+	z-index: 1;
 }
 
 .content {
@@ -227,17 +289,11 @@ p {
 		transform: translate3d(85px, 0, 0);
 	}
 }
-/*Shrinking for mobile*/
-@media (max-width: 768px) {
-	.waves {
-		height: 40px;
-		min-height: 40px;
-	}
-	.content {
-		height: 30vh;
-	}
-	h1 {
-		font-size: 24px;
-	}
-}
+
+/* 
+Copyright (c) 2022 by Goodkatz (https://codepen.io/goodkatz/pen/LYPGxQz)
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 </style>

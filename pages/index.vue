@@ -1,7 +1,7 @@
 <script setup></script>
 
 <template>
-	<div></div>
+	<div>ass</div>
 </template>
 
 <style></style>

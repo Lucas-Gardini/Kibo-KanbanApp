@@ -1,7 +1,7 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithPopup } from "firebase/auth";
 import { auth } from "./";
 
-type LoginTypes = "email" | "google";
+export type LoginTypes = "email" | "google";
 
 onAuthStateChanged(auth, (user) => {
 	if (user) {
@@ -9,6 +9,10 @@ onAuthStateChanged(auth, (user) => {
 	} else {
 	}
 });
+
+auth.useDeviceLanguage();
+
+const gProvider = new GoogleAuthProvider();
 
 async function register(email: string, password: string) {
 	createUserWithEmailAndPassword(auth, email, password)
@@ -27,26 +31,30 @@ async function register(email: string, password: string) {
 async function login(type: LoginTypes, email?: string, password?: string) {
 	switch (type) {
 		case "email":
-			signInWithEmailAndPassword(auth, email, password)
-				.then((userCredential) => {
-					// Signed in
-					const user = userCredential.user;
-					console.log(user);
-				})
-				.catch((error) => {
-					const errorCode = error.code;
-					const errorMessage = error.message;
-					console.log(errorMessage);
-				});
-			break;
+			try {
+				const userCredential = await signInWithEmailAndPassword(auth, email, password);
+				return userCredential;
+			} catch (error) {
+				const errorMessage = error.message;
+				return errorMessage;
+			}
+
 		case "google":
-			// ...
-			break;
+			try {
+				const result = await signInWithPopup(auth, gProvider);
+				const credential = GoogleAuthProvider.credentialFromResult(result);
+				const token = credential.accessToken;
+				return token;
+			} catch (error) {
+				const errorMessage = error.message;
+				return errorMessage;
+			}
 	}
 }
 
 async function logout() {
-	return await auth.signOut();
+	await auth.signOut();
+	return navigateTo("/login");
 }
 
 function getUser() {
