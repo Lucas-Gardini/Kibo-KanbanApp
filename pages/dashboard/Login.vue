@@ -77,7 +77,7 @@ const authenticate = async (type: LoginTypes) => {
 					<SplitterPanel :size="50">
 						<Card class="auth-card">
 							<template #header>
-								<img src="/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px; width: 50px" />
+								<img src="~/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px; width: 50px" />
 							</template>
 							<template #content>
 								<ProgressSpinner v-if="loading" />
