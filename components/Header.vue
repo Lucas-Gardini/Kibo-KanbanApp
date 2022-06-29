@@ -47,7 +47,7 @@ const userMenu = [
 <template>
 	<Menubar :model="items">
 		<template #start>
-			<img src="/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px" />
+			<img src="~/assets/logo/png/black_nobackground.png" alt="Logo do projeto" style="height: 50px" />
 		</template>
 
 		<template #end>

@@ -8,7 +8,7 @@ import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 
-import { readDoc, deleteDoc, createDoc } from "~~/plugins/firebase/db";
+import { readDoc, deleteDoc, createDoc, updateDoc } from "~~/plugins/firebase/db";
 import { getUser } from "~~/plugins/firebase/auth";
 import { DateTime } from "luxon";
 
@@ -18,6 +18,7 @@ const alert = ref(false);
 const create = ref(false);
 const deleting = ref({} as any);
 const deleted = ref(false);
+const editing = ref(null as any);
 const errored = ref(false);
 const error = ref("");
 const creating = ref({ name: "", description: "" });
@@ -29,7 +30,7 @@ onMounted(async () => {
 });
 
 const getAllProjects = async () => {
-	const project = await readDoc("projects", ["owner", "==", user.value.email]);
+	const project = (await readDoc("projects", ["owner", "==", user.value.email])) as any;
 	docs.value = [...project.docs];
 
 	docs.value = docs.value.map((doc) => {
@@ -38,15 +39,29 @@ const getAllProjects = async () => {
 	});
 };
 
-const createProject = async () => {
+const createProject = async ({ edit }: { edit?: boolean }) => {
 	try {
-		create.value = false;
-		await createDoc("projects", {
-			name: creating.value.name,
-			description: creating.value.description,
-			owner: user.value.email,
-			createdAt: DateTime.now().toFormat("dd/MM/yyyy"),
-		});
+		if (edit) {
+			console.log(editing.value);
+			create.value = false;
+			await updateDoc("projects", editing.value.id, {
+				name: editing.value.name,
+				description: editing.value.description,
+				createdAt: editing.value.createdAt,
+				updatedAt: DateTime.now().toFormat("dd/MM/yyyy"),
+				owner: user.value.email,
+				tasks: editing.value.tasks,
+			});
+		} else {
+			create.value = false;
+			await createDoc("projects", {
+				name: creating.value.name,
+				description: creating.value.description,
+				owner: user.value.email,
+				tasks: [],
+				createdAt: DateTime.now().toFormat("dd/MM/yyyy"),
+			});
+		}
 
 		await getAllProjects();
 	} catch (e) {
@@ -86,7 +101,11 @@ const deleteProject = async () => {
 					}}</NuxtLink>
 				</template>
 			</Column>
-			<Column field="description" header="Descrição" class="description"></Column>
+			<Column field="description" header="Descrição" class="description">
+				<template #body="slotProps">
+					<span>{{ slotProps.data.description.length > 0 ? slotProps.data.description.substring(0, 50) + "..." : "Sem descrição" }}</span>
+				</template>
+			</Column>
 			<Column field="createdAt" header="Data de criação"></Column>
 			<Column class="buttons">
 				<template #body="slotProps">
@@ -95,14 +114,22 @@ const deleteProject = async () => {
 						icon="pi pi-trash"
 						class="p-button-danger button"
 						style="margin-right: 15px"
-						v-tooltip.left="'Excluir projeto'"
+						v-tooltip.bottom="'Excluir projeto'"
 						@click="(deleting = slotProps.data) && (alert = true)"
+					></Button>
+					<Button
+						type="button"
+						icon="pi pi-pencil"
+						class="p-button-secondary button"
+						style="margin-right: 15px"
+						v-tooltip.bottom="'Editar projeto'"
+						@click="(editing = slotProps.data) && (create = true)"
 					></Button>
 					<Button
 						type="button"
 						icon="pi pi-arrow-right"
 						class="p-button-primary button"
-						v-tooltip="'Acessar projeto'"
+						v-tooltip.bottom="'Acessar projeto'"
 						@click="navigateTo(`/dashboard/${slotProps.data.id}`)"
 					></Button>
 				</template>
@@ -110,7 +137,7 @@ const deleteProject = async () => {
 		</DataTable>
 
 		<div v-else style="display: flex; flex-direction: column; margin-left: auto; margin-right: auto">
-			<img src="/assets/no_data.svg" alt="Imagem representando vazio" style="margin: auto; height: 250px" />
+			<img src="~/assets/no_data.svg" alt="Imagem representando vazio" style="margin: auto; height: 250px" />
 			<h2 style="margin: auto; margin-top: 25px">Sem Projetos</h2>
 		</div>
 
@@ -143,7 +170,8 @@ const deleteProject = async () => {
 		</Dialog>
 
 		<Dialog
-			header="Criação"
+			:header="editing ? 'Edição' : 'Criação'"
+			@hide="(editing = null), getAllProjects()"
 			v-model:visible="create"
 			:breakpoints="{ '960px': '75vw', '640px': '90vw' }"
 			:style="{ width: '350px' }"
@@ -151,23 +179,34 @@ const deleteProject = async () => {
 		>
 			<template #default>
 				<span class="p-float-label" style="margin-top: 20px; margin-bottom: 40px">
-					<InputText style="width: 100%" type="text" v-model="creating.name" />
-					<label for="username">Nome do projeto</label>
+					<InputText v-if="!editing" style="width: 100%" type="text" v-model="creating.name" />
+					<InputText v-else style="width: 100%" type="text" v-model="editing.name" />
+					<label>Nome do projeto</label>
 				</span>
 				<span class="p-float-label" style="margin-top: 20px; margin-bottom: 20px">
-					<Textarea style="width: 100%" v-model="creating.description" :autoResize="true" rows="4" cols="30" />
-					<label for="username">Descrição do projeto</label>
+					<Textarea v-if="!editing" style="width: 100%" v-model="creating.description" :autoResize="true" rows="4" cols="30" />
+					<Textarea v-else style="width: 100%" v-model="editing.description" :autoResize="true" rows="4" cols="30" />
+					<label>Descrição do projeto</label>
 				</span>
 			</template>
 
 			<template #footer>
-				<Button label="Cancelar" icon="pi pi-times" @click="create = false" class="p-button-text p-button-danger" />
 				<Button
-					label="Criar"
+					label="Cancelar"
+					icon="pi pi-times"
+					@click="(create = false), (editing = null), getAllProjects()"
+					class="p-button-text p-button-danger"
+				/>
+				<Button
+					:label="editing ? 'Salvar' : 'Criar'"
 					icon="pi pi-check"
 					@click="
 						() => {
-							creating.name.length > 0 && createProject();
+							if (editing) {
+								editing.name.length > 0 && createProject({ edit: true });
+							} else {
+								creating.name.length > 0 && createProject({});
+							}
 						}
 					"
 					class="p-button-text p-button-primary"

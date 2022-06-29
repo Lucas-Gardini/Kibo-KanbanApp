@@ -1,0 +1,261 @@
+<script lang="ts" setup>
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import Toolbar from "primevue/toolbar";
+import InputText from "primevue/inputtext";
+import ContextMenu from "primevue/contextmenu";
+import { readDoc, updateDoc } from "~~/plugins/firebase/db";
+import { IColumn, IProject, ITask } from "~~/utils/types/firebase.types";
+import { DateTime } from "luxon";
+
+const columnMenuItems = ref([
+	{
+		label: "File",
+		icon: "pi pi-fw pi-file",
+		class: "menu-context",
+	},
+	{
+		separator: true,
+	},
+	{
+		label: "Excluir",
+		icon: "pi pi-fw pi-trash",
+		class: "menu-delete menu-context",
+	},
+] as any);
+
+const route = useRoute();
+const columnMenu = ref(null);
+const project = ref({} as IProject);
+const columns = ref([] as IColumn[]);
+const tasks = ref([] as ITask[]);
+const editing = ref(null as any);
+const create = ref(false);
+const creating = ref({ name: "", color: "#fff" });
+
+const getProject = async () => {
+	project.value = (await readDoc("projects", ["id", "==", route.params.project.toString()])) as IProject;
+	columns.value = project.value.columns;
+	tasks.value = project.value.tasks;
+	project.value.id = route.params.project.toString();
+};
+
+const saveColumn = async () => {
+	if (editing.value) {
+		if (editing.value.name.length > 0) {
+			await getProject();
+		}
+	} else {
+		if (creating.value.name.length > 0) {
+			create.value = false;
+
+			project.value.columns.push({
+				name: creating.value.name,
+				color: creating.value.color,
+				updatedAt: DateTime.local().toJSDate(),
+			});
+
+			const columns = [...project.value.columns];
+
+			await updateDoc("projects", project.value.id, {
+				name: project.value.name,
+				description: project.value.description,
+				createdAt: project.value.createdAt,
+				updatedAt: DateTime.now().toFormat("dd/MM/yyyy"),
+				owner: project.value.owner,
+				columns,
+				tasks: project.value.tasks,
+			});
+
+			// await getProject();
+		}
+	}
+};
+
+const saveEverything = async () => {
+	try {
+		await updateDoc("projects", project.value.id, {
+			name: project.value.name,
+			description: project.value.description,
+			createdAt: project.value.createdAt,
+			updatedAt: DateTime.now().toFormat("dd/MM/yyyy"),
+			owner: project.value.owner,
+			columns: columns.value,
+			tasks: project.value.tasks,
+		});
+	} catch (error) {}
+};
+
+const dragColumn = (event) => {
+	console.log(event.relatedTarget);
+	if (event.relatedTarget && event.relatedTarget.id) {
+		const indexOfFrom = columns.value.findIndex((column) => column.name === event.relatedTarget.id);
+		const indexOfTo = columns.value.findIndex((column) => column.name === event.srcElement.id);
+
+		const temp = columns.value[indexOfFrom];
+		columns.value[indexOfFrom] = columns.value[indexOfTo];
+		columns.value[indexOfTo] = temp;
+	}
+};
+
+const onColumnContextMenu = (event, column) => {
+	columnMenu.value.show(event);
+};
+
+onMounted(async () => {
+	await getProject();
+});
+</script>
+
+<template>
+	<div>
+		<div class="project">
+			<Toolbar style="background-color: white">
+				<template #start>
+					<h1>{{ project.name }}</h1>
+				</template>
+
+				<template #end>
+					<Button icon="pi pi-refresh" class="btn refresh-btn p-button-rounded p-button-text" @click="getProject" />
+					<Button
+						icon="pi pi-plus"
+						title="Adicionar projeto"
+						class="btn p-button-primary mr-2"
+						style="margin-right: 5px"
+						@click="create = true"
+					/>
+				</template>
+			</Toolbar>
+
+			<Dialog
+				:header="editing ? 'Edição' : 'Criação'"
+				@hide="(editing = null), getProject()"
+				v-model:visible="create"
+				:breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+				:style="{ width: '350px' }"
+				:modal="true"
+			>
+				<template #default>
+					<span class="p-float-label" style="margin-top: 20px; margin-bottom: 40px">
+						<InputText v-if="!editing" style="width: 100%" type="text" v-model="creating.name" />
+						<InputText v-else style="width: 100%" type="text" v-model="editing.name" />
+						<label>Coluna</label>
+					</span>
+
+					<label>Cor: &nbsp;</label>
+					<!-- <ColorPicker v-if="!editing" v-model="creating.color" />
+				<ColorPicker v-else v-model="editing.color" /> -->
+					<input v-if="!editing" type="color" v-model="creating.color" />
+					<input v-else type="color" v-model="editing.color" />
+				</template>
+
+				<template #footer>
+					<Button
+						label="Cancelar"
+						icon="pi pi-times"
+						@click="(create = false), (editing = null), getProject()"
+						class="p-button-text p-button-danger"
+					/>
+					<Button :label="editing ? 'Salvar' : 'Criar'" icon="pi pi-check" @click="saveColumn" class="p-button-text p-button-primary" />
+				</template>
+			</Dialog>
+		</div>
+		<div
+			class="columns"
+			:style="`
+					display: grid;
+					grid-template-columns: repeat(${columns.length}, 250px);
+					grid-template-rows: 100%;
+					grid-column-gap: 0px;
+					grid-row-gap: 0px;
+					overflow-x: auto;
+					`"
+			draggable="false"
+		>
+			<ContextMenu ref="columnMenu" :model="columnMenuItems" />
+			<div
+				v-for="(column, i) in columns"
+				:key="i"
+				:id="column.name"
+				class="column"
+				:style="`border-top: 10px groove ${column.color}`"
+				draggable="true"
+				@dragenter="dragColumn"
+				@dragend="saveEverything"
+				@contextmenu="onColumnContextMenu($event, column)"
+			>
+				<div v-for="(task, j) in tasks" class="task">
+					{{ task }}
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<style>
+.btn {
+	display: auto;
+}
+
+.project {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	height: calc(20vh);
+	/* max-height: calc(100vh - 58px); */
+	padding-top: 25px;
+	padding-left: 25px;
+	padding-right: 25px;
+}
+
+.columns {
+	min-width: 100%;
+	max-width: 100%;
+	/* justify-content: space-between; */
+	height: calc(100vh - 20vh - 100px);
+	overflow-x: auto;
+	padding-left: 5px;
+	padding-right: 5px;
+}
+
+.column {
+	border: 1px solid black;
+	height: 100%;
+	max-width: 250px;
+	padding: 15px;
+	/* margin-right: 12.5px; */
+	/* margin-left: 12.5px; */
+}
+
+.menu-context *:hover {
+	background: rgb(244, 243, 243) !important;
+}
+
+.menu-delete * {
+	color: red !important;
+}
+
+@media (max-width: 500px) {
+	body {
+		overflow: scroll !important;
+	}
+
+	.project {
+		height: calc(20vh);
+	}
+
+	.btn {
+		display: none;
+	}
+
+	.columns {
+		flex-direction: column;
+		height: calc(100vh);
+	}
+
+	.column {
+		min-width: 100%;
+		margin: auto;
+	}
+}
+</style>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import "./plugins/firebase";
 import { getUser } from "./plugins/firebase/auth";
 
 const user = ref(null);

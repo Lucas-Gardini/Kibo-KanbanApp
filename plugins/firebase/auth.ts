@@ -3,10 +3,13 @@ import { auth } from "./";
 
 export type LoginTypes = "email" | "google";
 
+let currentUser = null;
+
 onAuthStateChanged(auth, (user) => {
 	if (user) {
-		console.log(user);
+		currentUser = user;
 	} else {
+		currentUser = null;
 	}
 });
 
@@ -61,4 +64,4 @@ function getUser() {
 	return auth.currentUser;
 }
 
-export { register, login, logout, getUser };
+export { register, login, logout, getUser, currentUser };

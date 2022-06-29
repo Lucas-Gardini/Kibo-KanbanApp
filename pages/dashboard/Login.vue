@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { login, LoginTypes } from "../../plugins/firebase/auth";
+import { login, register, LoginTypes } from "../../plugins/firebase/auth";
 import Splitter from "primevue/splitter";
 import SplitterPanel from "primevue/splitterpanel";
 import Card from "primevue/card";
@@ -42,7 +42,12 @@ const authenticate = async (type: LoginTypes) => {
 		case "email":
 			loading.value = true;
 			loginValue.value = await login("email", user.value, password.value);
-			console.log(loginValue.value);
+			if (loginValue.value && loginValue.value.includes("user-not-found")) {
+				const newUser = confirm(`Deseja criar um novo usuário com o email: ${user.value}?`);
+				if (newUser) {
+					await register(user.value, password.value);
+				}
+			}
 			loading.value = false;
 			break;
 
