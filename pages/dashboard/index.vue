@@ -103,7 +103,9 @@ const deleteProject = async () => {
 			</Column>
 			<Column field="description" header="Descrição" class="description">
 				<template #body="slotProps">
-					<span>{{ slotProps.data.description.length > 0 ? slotProps.data.description.substring(0, 50) + "..." : "Sem descrição" }}</span>
+					<span :title="slotProps.data.description">{{
+						slotProps.data.description.length > 0 ? slotProps.data.description.substring(0, 50) + "..." : "Sem descrição"
+					}}</span>
 				</template>
 			</Column>
 			<Column field="createdAt" header="Data de criação"></Column>

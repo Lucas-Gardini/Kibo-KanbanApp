@@ -23,6 +23,6 @@ export interface ITask {
 	id?: string;
 	name: string;
 	description?: string;
-	project: string;
+	project?: string;
 	column: string;
 }

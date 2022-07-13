@@ -10,9 +10,12 @@ import { DateTime } from "luxon";
 
 const columnMenuItems = ref([
 	{
-		label: "File",
+		label: "Nova Tarefa",
 		icon: "pi pi-fw pi-file",
-		class: "menu-context",
+		class: "menu-add menu-context",
+		command: async () => {
+			creatingNewTask.value = true;
+		},
 	},
 	{
 		separator: true,
@@ -21,17 +24,26 @@ const columnMenuItems = ref([
 		label: "Excluir",
 		icon: "pi pi-fw pi-trash",
 		class: "menu-delete menu-context",
+		command: async () => {
+			columns.value = columns.value.filter((column) => column.name !== columnConext.value);
+			tasks.value = tasks.value.filter((task) => task.column !== columnConext.value);
+			await saveEverything();
+		},
 	},
 ] as any);
 
 const route = useRoute();
 const columnMenu = ref(null);
+const columnConext = ref(null);
 const project = ref({} as IProject);
 const columns = ref([] as IColumn[]);
 const tasks = ref([] as ITask[]);
 const editing = ref(null as any);
 const create = ref(false);
-const creating = ref({ name: "", color: "#fff" });
+const creating = ref({ name: "", color: "#ffffff" });
+const creatingNewTask = ref(false);
+const newTask = ref({ name: "", column: "" });
+const editingTask = ref(false);
 
 const getProject = async () => {
 	project.value = (await readDoc("projects", ["id", "==", route.params.project.toString()])) as IProject;
@@ -49,11 +61,21 @@ const saveColumn = async () => {
 		if (creating.value.name.length > 0) {
 			create.value = false;
 
-			project.value.columns.push({
-				name: creating.value.name,
-				color: creating.value.color,
-				updatedAt: DateTime.local().toJSDate(),
-			});
+			if (project.value.columns) {
+				project.value.columns.push({
+					name: creating.value.name,
+					color: creating.value.color,
+					updatedAt: DateTime.local().toJSDate(),
+				});
+			} else {
+				project.value.columns = [
+					{
+						name: creating.value.name,
+						color: creating.value.color,
+						updatedAt: DateTime.local().toJSDate(),
+					},
+				];
+			}
 
 			const columns = [...project.value.columns];
 
@@ -72,6 +94,29 @@ const saveColumn = async () => {
 	}
 };
 
+const saveTask = async () => {
+	tasks.value.push({
+		name: newTask.value.name,
+		column: columnConext.value,
+	});
+
+	await updateDoc("projects", project.value.id, {
+		name: project.value.name,
+		description: project.value.description,
+		createdAt: project.value.createdAt,
+		updatedAt: DateTime.now().toFormat("dd/MM/yyyy"),
+		owner: project.value.owner,
+		columns: project.value.columns,
+		tasks: tasks.value,
+	});
+
+	creatingNewTask.value = false;
+	editingTask.value = false;
+	newTask.value = { name: "", column: "" };
+
+	await getProject();
+};
+
 const saveEverything = async () => {
 	try {
 		await updateDoc("projects", project.value.id, {
@@ -87,18 +132,27 @@ const saveEverything = async () => {
 };
 
 const dragColumn = (event) => {
-	console.log(event.relatedTarget);
+	// console.log(event.relatedTarget);
 	if (event.relatedTarget && event.relatedTarget.id) {
-		const indexOfFrom = columns.value.findIndex((column) => column.name === event.relatedTarget.id);
-		const indexOfTo = columns.value.findIndex((column) => column.name === event.srcElement.id);
+		try {
+			const indexOfFrom = columns.value.findIndex((column) => {
+				return column ? column.name === event.relatedTarget.id : false;
+			});
+			const indexOfTo = columns.value.findIndex((column) => {
+				return column ? column.name === event.srcElement.id : false;
+			});
 
-		const temp = columns.value[indexOfFrom];
-		columns.value[indexOfFrom] = columns.value[indexOfTo];
-		columns.value[indexOfTo] = temp;
+			if (indexOfFrom > -1 && indexOfTo > -1) {
+				const temp = columns.value[indexOfFrom];
+				columns.value[indexOfFrom] = columns.value[indexOfTo];
+				columns.value[indexOfTo] = temp;
+			}
+		} catch (error) {}
 	}
 };
 
-const onColumnContextMenu = (event, column) => {
+const onColumnContextMenu = (event) => {
+	columnConext.value = event.target.id;
 	columnMenu.value.show(event);
 };
 
@@ -108,7 +162,7 @@ onMounted(async () => {
 </script>
 
 <template>
-	<div>
+	<div v-if="project.name">
 		<div class="project">
 			<Toolbar style="background-color: white">
 				<template #start>
@@ -159,12 +213,39 @@ onMounted(async () => {
 					<Button :label="editing ? 'Salvar' : 'Criar'" icon="pi pi-check" @click="saveColumn" class="p-button-text p-button-primary" />
 				</template>
 			</Dialog>
+
+			<Dialog
+				:header="editingTask ? 'Edição' : 'Criação'"
+				@hide="(editingTask = false), getProject()"
+				v-model:visible="creatingNewTask"
+				:breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+				:style="{ width: '350px' }"
+				:modal="true"
+			>
+				<template #default>
+					<span class="p-float-label" style="margin-top: 20px; margin-bottom: 40px">
+						<InputText v-if="!editingTask" style="width: 100%" type="text" v-model="newTask.name" />
+						<!-- <InputText v-else style="width: 100%" type="text" v-model="editing.name" /> -->
+						<label>Tarefa</label>
+					</span>
+				</template>
+
+				<template #footer>
+					<Button
+						label="Cancelar"
+						icon="pi pi-times"
+						@click="(creatingNewTask = false), (editingTask = false), getProject()"
+						class="p-button-text p-button-danger"
+					/>
+					<Button :label="editingTask ? 'Salvar' : 'Criar'" icon="pi pi-check" @click="saveTask" class="p-button-text p-button-primary" />
+				</template>
+			</Dialog>
 		</div>
 		<div
 			class="columns"
 			:style="`
 					display: grid;
-					grid-template-columns: repeat(${columns.length}, 250px);
+					grid-template-columns: repeat(${columns ? columns.length : 0}, 250px);
 					grid-template-rows: 100%;
 					grid-column-gap: 0px;
 					grid-row-gap: 0px;
@@ -182,10 +263,11 @@ onMounted(async () => {
 				draggable="true"
 				@dragenter="dragColumn"
 				@dragend="saveEverything"
-				@contextmenu="onColumnContextMenu($event, column)"
+				@contextmenu="onColumnContextMenu($event)"
 			>
+				<h3>{{ column.name }}</h3>
 				<div v-for="(task, j) in tasks" class="task">
-					{{ task }}
+					<span v-if="task.column === column.name">{{ task }}</span>
 				</div>
 			</div>
 		</div>
@@ -233,6 +315,10 @@ onMounted(async () => {
 
 .menu-delete * {
 	color: red !important;
+}
+
+.menu-add * {
+	color: #14b8a6 !important;
 }
 
 @media (max-width: 500px) {

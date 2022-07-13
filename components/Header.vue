@@ -2,7 +2,6 @@
 import { getUser, logout } from "../plugins/firebase/auth";
 import Menubar from "primevue/menubar";
 import Avatar from "primevue/avatar";
-import Image from "primevue/image";
 import Menu from "primevue/menu";
 
 const emit = defineEmits(["logout"]);
@@ -20,6 +19,15 @@ const items = ref([
 const user = ref(null as unknown as ReturnType<typeof getUser>);
 const pfpUrl = ref(null);
 const menu = ref(null);
+const userMenu: any = ref([
+	{
+		label: "Conta",
+		items: [
+			{ label: "Configurações", icon: "pi pi-fw pi-cog", to: "/configuracoes" },
+			{ label: "Sair", icon: "pi pi-fw pi-power-off", command: () => logout() && emit("logout") },
+		],
+	},
+]);
 
 onMounted(() => {
 	user.value = getUser();
@@ -27,21 +35,16 @@ onMounted(() => {
 	pfpUrl.value = user.value.photoURL
 		? user.value.photoURL
 		: `https://avatars.dicebear.com/api/initials/${user.value.displayName ? user.value.displayName : user.value.email}.svg`;
+
+	userMenu.value = userMenu.value.map((acc) => {
+		acc.label = user.value.displayName || user.value.email.split(".")[0];
+		return acc;
+	});
 });
 
 const toggle = (event) => {
 	menu.value.toggle(event);
 };
-
-const userMenu = [
-	{
-		label: "Account",
-		items: [
-			{ label: "Configurações", icon: "pi pi-fw pi-cog", to: "/configuracoes" },
-			{ label: "Sair", icon: "pi pi-fw pi-power-off", command: () => logout() && emit("logout") },
-		],
-	},
-];
 </script>
 
 <template>
