@@ -74,6 +74,10 @@ body {
 	flex-direction: column !important;
 }
 
+.p-contextmenu {
+	z-index: 9999;
+}
+
 /* .p-progress-spinner-circle {
 	animation: p-progress-spinner-dash 1.5s ease-in-out infinite, p-progress-spinner-color 6s ease-in-out infinite;
 	-webkit-animation: p-progress-spinner-dash 1.5s ease-in-out infinite, p-progress-spinner-color 6s ease-in-out infinite;

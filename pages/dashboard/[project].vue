@@ -7,6 +7,8 @@ import ContextMenu from "primevue/contextmenu";
 import { readDoc, updateDoc } from "~~/plugins/firebase/db";
 import { IColumn, IProject, ITask } from "~~/utils/types/firebase.types";
 import { DateTime } from "luxon";
+import Accordion from "primevue/accordion";
+import AccordionTab from "primevue/accordiontab";
 
 const columnMenuItems = ref([
 	{
@@ -25,8 +27,31 @@ const columnMenuItems = ref([
 		icon: "pi pi-fw pi-trash",
 		class: "menu-delete menu-context",
 		command: async () => {
-			columns.value = columns.value.filter((column) => column.name !== columnConext.value);
-			tasks.value = tasks.value.filter((task) => task.column !== columnConext.value);
+			columns.value = columns.value.filter((column) => column.name !== columnContext.value);
+			tasks.value = tasks.value.filter((task) => task.column !== columnContext.value);
+			await saveEverything();
+		},
+	},
+] as any);
+
+const taskMenuItems = ref([
+	{
+		label: "Editar Tarefa",
+		icon: "pi pi-fw pi-file",
+		class: "menu-add menu-context",
+		command: async () => {
+			creatingNewTask.value = true;
+		},
+	},
+	{
+		separator: true,
+	},
+	{
+		label: "Excluir Tarefa",
+		icon: "pi pi-fw pi-trash",
+		class: "menu-delete menu-context",
+		command: async () => {
+			tasks.value = tasks.value.filter((task) => task.column !== columnContext.value);
 			await saveEverything();
 		},
 	},
@@ -34,7 +59,9 @@ const columnMenuItems = ref([
 
 const route = useRoute();
 const columnMenu = ref(null);
-const columnConext = ref(null);
+const taskMenu = ref(null);
+const columnContext = ref(null);
+const taskContext = ref(null);
 const project = ref({} as IProject);
 const columns = ref([] as IColumn[]);
 const tasks = ref([] as ITask[]);
@@ -42,8 +69,9 @@ const editing = ref(null as any);
 const create = ref(false);
 const creating = ref({ name: "", color: "#ffffff" });
 const creatingNewTask = ref(false);
-const newTask = ref({ name: "", column: "" });
+const newTask = ref({ name: "", description: "", column: "" });
 const editingTask = ref(false);
+const canDragColumn = ref(true);
 
 const getProject = async () => {
 	project.value = (await readDoc("projects", ["id", "==", route.params.project.toString()])) as IProject;
@@ -97,7 +125,8 @@ const saveColumn = async () => {
 const saveTask = async () => {
 	tasks.value.push({
 		name: newTask.value.name,
-		column: columnConext.value,
+		description: newTask.value.description,
+		column: columnContext.value,
 	});
 
 	await updateDoc("projects", project.value.id, {
@@ -112,7 +141,7 @@ const saveTask = async () => {
 
 	creatingNewTask.value = false;
 	editingTask.value = false;
-	newTask.value = { name: "", column: "" };
+	newTask.value = { name: "", description: "", column: "" };
 
 	await getProject();
 };
@@ -129,11 +158,12 @@ const saveEverything = async () => {
 			tasks: project.value.tasks,
 		});
 	} catch (error) {}
+	canDragColumn.value = true;
 };
 
 const dragColumn = (event) => {
 	// console.log(event.relatedTarget);
-	if (event.relatedTarget && event.relatedTarget.id) {
+	if (event.relatedTarget && event.relatedTarget.id && canDragColumn.value) {
 		try {
 			const indexOfFrom = columns.value.findIndex((column) => {
 				return column ? column.name === event.relatedTarget.id : false;
@@ -151,9 +181,33 @@ const dragColumn = (event) => {
 	}
 };
 
+const dragTask = (event) => {
+	canDragColumn.value = false;
+	if (event.relatedTarget && event.relatedTarget.id && !canDragColumn.value) {
+		console.log(event.relatedTarget.parentElement.parentElement.parentElement.id);
+		console.log(event.srcElement.id);
+		try {
+			const indexOfTask = tasks.value.findIndex((task) => {
+				return task ? task.name === event.relatedTarget.id : false;
+			});
+
+			// console.log(indexOfTask);
+		} catch (error) {}
+	}
+};
+
+const getOnlyColumnTasks = (column: IColumn) => {
+	return tasks.value.filter((task) => task.column === column.name);
+};
+
 const onColumnContextMenu = (event) => {
-	columnConext.value = event.target.id;
+	columnContext.value = event.target.id;
 	columnMenu.value.show(event);
+};
+
+const onTaskContextMenu = (event) => {
+	taskContext.value = event.target.id;
+	taskMenu.value.show(event);
 };
 
 onMounted(async () => {
@@ -215,7 +269,7 @@ onMounted(async () => {
 			</Dialog>
 
 			<Dialog
-				:header="editingTask ? 'Edição' : 'Criação'"
+				:header="`Adicionando tarefa (${columnContext})`"
 				@hide="(editingTask = false), getProject()"
 				v-model:visible="creatingNewTask"
 				:breakpoints="{ '960px': '75vw', '640px': '90vw' }"
@@ -227,6 +281,12 @@ onMounted(async () => {
 						<InputText v-if="!editingTask" style="width: 100%" type="text" v-model="newTask.name" />
 						<!-- <InputText v-else style="width: 100%" type="text" v-model="editing.name" /> -->
 						<label>Tarefa</label>
+					</span>
+
+					<span class="p-float-label" style="margin-top: 20px; margin-bottom: 40px">
+						<InputText v-if="!editingTask" style="width: 100%" type="text" v-model="newTask.description" />
+						<!-- <InputText v-else style="width: 100%" type="text" v-model="editing.name" /> -->
+						<label>Descrição</label>
 					</span>
 				</template>
 
@@ -250,6 +310,7 @@ onMounted(async () => {
 					grid-column-gap: 0px;
 					grid-row-gap: 0px;
 					overflow-x: auto;
+					${!canDragColumn ? 'z-index: 0' : 'z-index: 9999'}
 					`"
 			draggable="false"
 		>
@@ -260,15 +321,36 @@ onMounted(async () => {
 				:id="column.name"
 				class="column"
 				:style="`border-top: 10px groove ${column.color}`"
-				draggable="true"
+				:draggable="canDragColumn"
 				@dragenter="dragColumn"
 				@dragend="saveEverything"
 				@contextmenu="onColumnContextMenu($event)"
 			>
 				<h3>{{ column.name }}</h3>
-				<div v-for="(task, j) in tasks" class="task">
-					<span v-if="task.column === column.name">{{ task }}</span>
-				</div>
+				<Accordion v-if="!canDragColumn">
+					<AccordionTab>
+						<template #header> Mover pra cá </template>
+					</AccordionTab>
+				</Accordion>
+				<Accordion
+					:style="!canDragColumn ? 'z-index: 0' : 'z-index: 9999'"
+					draggable="true"
+					v-for="(task, j) in getOnlyColumnTasks(column)"
+					:id="task.name"
+					@dragenter="dragTask"
+					@dragend="saveEverything"
+					@contextmenu="onTaskContextMenu($event)"
+				>
+					<ContextMenu ref="taskMenu" :model="taskMenuItems" />
+					<AccordionTab>
+						<template #header>
+							{{ task.name }}
+						</template>
+						<template #default>
+							{{ task.description }}
+						</template>
+					</AccordionTab>
+				</Accordion>
 			</div>
 		</div>
 	</div>
